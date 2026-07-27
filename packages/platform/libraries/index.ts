@@ -9,6 +9,10 @@ import { symmetricDecrypt, symmetricEncrypt } from "@calcom/lib/crypto";
 import type { Prisma } from "@calcom/prisma/client";
 import { credentialForCalendarServiceSelect } from "@calcom/prisma/selects/credential";
 import { paymentDataSelect } from "@calcom/prisma/selects/payment";
+import prisma from "@calcom/prisma";
+import { slugify as slugifyForOrgUsername } from "@calcom/lib/slugify";
+import { CreationSource as PrismaCreationSource, MembershipRole as PrismaMembershipRole } from "@calcom/prisma/enums";
+import { v4 as uuidv4 } from "uuid";
 
 export { slugify } from "@calcom/lib/slugify";
 export { slugifyLenient } from "@calcom/lib/slugify-lenient";
@@ -180,8 +184,12 @@ export async function verifyCodeAuthenticated(_args: {
   return false;
 }
 
-// createNewUsersConnectToOrgIfExists removed (EE feature) — stub for API v2
-export async function createNewUsersConnectToOrgIfExists(_args: {
+// Community reimplementation of the removed EE helper, covering the path API v2's
+// OAuthClientUsersService uses (platform-managed org members). Ported from the AGPL
+// implementation that shipped in cal.com v4.0.0 (packages/trpc .../inviteMember/utils.ts):
+// per invited email — create the user, attach an org Profile, and add the org
+// Membership, all in one transaction.
+export async function createNewUsersConnectToOrgIfExists(args: {
   invitations: { usernameOrEmail: string; role: string }[];
   creationSource?: string;
   teamId: number;
@@ -195,7 +203,86 @@ export async function createNewUsersConnectToOrgIfExists(_args: {
   timeZone?: string;
   language?: string;
 }): Promise<{ id: number; email: string; username: string }[]> {
-  throw new Error("Organization user creation is not available in community edition");
+  const {
+    invitations,
+    creationSource,
+    teamId,
+    isOrg,
+    parentId,
+    orgConnectInfoByUsernameOrEmail,
+    isPlatformManaged,
+    timeFormat,
+    weekStart,
+    timeZone,
+    language,
+  } = args;
+
+  return prisma.$transaction(
+    async (tx) => {
+      const createdUsers: { id: number; email: string; username: string }[] = [];
+      for (const invitation of invitations) {
+        const email = invitation.usernameOrEmail;
+        if (!email.includes("@")) {
+          throw new Error(`Cannot create org user from invalid email: ${email}`);
+        }
+        const connection = orgConnectInfoByUsernameOrEmail[email] ?? {
+          orgId: isOrg ? teamId : 0,
+          autoAccept: false,
+        };
+        const orgId = connection.orgId || (isOrg ? teamId : 0);
+        const autoAccept = connection.autoAccept ?? false;
+        const [emailUser, emailDomain] = email.split("@");
+        const username = slugifyForOrgUsername(`${emailUser}-${emailDomain.split(".")[0]}`);
+
+        const user = await tx.user.create({
+          data: {
+            username,
+            email,
+            verified: true,
+            invitedTo: teamId,
+            isPlatformManaged: !!isPlatformManaged,
+            organizationId: orgId || null,
+            ...(timeFormat !== undefined ? { timeFormat } : {}),
+            ...(weekStart ? { weekStart } : {}),
+            ...(timeZone ? { timeZone } : {}),
+            ...(language ? { locale: language } : {}),
+            ...(creationSource ? { creationSource: creationSource as PrismaCreationSource } : {}),
+            ...(orgId
+              ? {
+                  profiles: {
+                    createMany: {
+                      data: [{ uid: uuidv4(), username, organizationId: orgId }],
+                    },
+                  },
+                }
+              : {}),
+            teams: {
+              create: {
+                teamId,
+                role: invitation.role as PrismaMembershipRole,
+                accepted: autoAccept,
+              },
+            },
+          },
+        });
+
+        if (parentId) {
+          await tx.membership.create({
+            data: {
+              teamId: parentId,
+              userId: user.id,
+              role: PrismaMembershipRole.MEMBER,
+              accepted: autoAccept,
+            },
+          });
+        }
+
+        createdUsers.push({ id: user.id, email: user.email, username: user.username ?? username });
+      }
+      return createdUsers;
+    },
+    { timeout: 10000 }
+  );
 }
 
 // sendVerificationCode removed (EE feature) — stub for API v2
