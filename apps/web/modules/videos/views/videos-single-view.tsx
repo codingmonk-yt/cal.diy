@@ -2,6 +2,7 @@
 
 import dayjs from "@calcom/dayjs";
 import {
+  APP_NAME,
   RECORDING_DEFAULT_ICON,
   TRANSCRIPTION_STOPPED_ICON,
   WEBAPP_URL,
@@ -190,15 +191,18 @@ export default function JoinCall(props: PageProps) {
             }}
           />
         ) : (
-          <img
-            className="fixed z-10 hidden h-5 sm:inline-block"
-            src={`${WEBSITE_URL}/cal-logo-word-dark.svg`}
-            alt="Logo"
+          // White-label: the deployment's own name, never the vendor wordmark. The bundled
+          // cal-logo-word-dark.svg leaked "Cal.diy" onto every meeting screen even though
+          // NEXT_PUBLIC_APP_NAME was set, so the video page was the one surface still branded
+          // by the vendor. CAL_VIDEO_LOGO (org-level) still wins when present.
+          <span
+            className="fixed z-10 hidden text-lg font-semibold text-white sm:inline-block"
             style={{
-              top: 47,
+              top: 40,
               left: 20,
-            }}
-          />
+            }}>
+            {APP_NAME}
+          </span>
         )}
       </div>
       {!hideLoginModal && (
