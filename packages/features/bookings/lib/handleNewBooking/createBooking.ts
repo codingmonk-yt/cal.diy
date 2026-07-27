@@ -180,12 +180,6 @@ function buildNewBookingData(params: CreateBookingParams) {
 
   const attendeesData = getAttendeesData(evt);
   const eventTypeRel = getEventTypeRel(eventType.id);
-  // FLOWLINES-DEBUG: trace the timezone shift observed live (requested 10:00Z stored 04:30Z).
-  console.log(
-    `[FLOWLINES-DEBUG createBooking] evt.startTime=${evt.startTime} parsedUtc=${dayjs
-      .utc(evt.startTime)
-      .toISOString()} organizerTz=${evt.organizer?.timeZone}`
-  );
   const newBookingData: Prisma.BookingCreateInput = {
     uid,
     userPrimaryEmail: evt.organizer.email,

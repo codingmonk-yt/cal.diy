@@ -1360,12 +1360,6 @@ async function handler(
 
   const eventName = getEventName(eventNameObject);
 
-  // FLOWLINES-DEBUG: trace the timezone shift observed live (requested 10:00Z stored 04:30Z).
-  console.log(
-    `[FLOWLINES-DEBUG evtBuild] reqBody.start=${reqBody.start} dayjsUtc=${dayjs(reqBody.start)
-      .utc()
-      .format()} reqBodyTz=${reqBody.timeZone}`
-  );
   let evt: BuiltCalendarEvent = new CalendarEventBuilder({
     bookerUrl,
     title: eventName,
