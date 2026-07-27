@@ -1,6 +1,8 @@
 import { createInstance } from "i18next";
 import type { i18n as I18nInstance } from "i18next";
 
+import { APP_NAME } from "@calcom/lib/constants";
+
 const { i18n } = require("@calcom/i18n/next-i18next.config");
 
 const englishTranslations: Record<string, string> = require("@calcom/i18n/locales/en/common.json");
@@ -73,6 +75,10 @@ export const getTranslation = async (locale: string, ns: string) => {
       },
     },
     fallbackLng: "en",
+    // White-label: `{{appName}}` resolves everywhere, not only at the handful of call sites that
+    // remembered to pass it. Without this default, translations referencing the app would have to
+    // hardcode the vendor name (which is exactly how "Cal.diy" leaked into user-facing copy).
+    interpolation: { defaultVariables: { appName: APP_NAME } },
   });
 
   // Cache the i18n instance

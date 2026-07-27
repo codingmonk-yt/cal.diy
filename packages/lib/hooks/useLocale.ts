@@ -4,6 +4,7 @@ import { useContext } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAtomsContext } from "@calcom/atoms/hooks/useAtomsContext";
+import { APP_NAME } from "@calcom/lib/constants";
 import { AppRouterI18nContext } from "@calcom/web/app/AppRouterI18nProvider";
 import { CustomI18nContext } from "@calcom/web/app/CustomI18nProvider";
 
@@ -50,6 +51,9 @@ export const useLocale = (): useLocaleReturnType => {
             [ns]: translations,
           },
         },
+        // Same white-label default as the server instance (packages/i18n/server.ts): `{{appName}}`
+        // must resolve even when a call site forgets to pass it.
+        interpolation: { defaultVariables: { appName: APP_NAME } },
       });
 
       serverI18nInstances.set(instanceKey, {
