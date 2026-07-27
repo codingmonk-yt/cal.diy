@@ -17,8 +17,13 @@ ARG CSP_POLICY
 ## We need these variables as required by Next.js build to create rewrites
 ARG NEXT_PUBLIC_SINGLE_ORG_SLUG
 ARG ORGANIZATIONS_ENABLED
+## White-label: NEXT_PUBLIC_* are INLINED at build time. Without this arg the bundle keeps the
+## vendor fallback from APP_NAME (`process.env.NEXT_PUBLIC_APP_NAME || "Cal.diy"`), so the runtime
+## variable had no effect and every user-facing surface still read "Cal.diy".
+ARG NEXT_PUBLIC_APP_NAME
 
-ENV NEXT_PUBLIC_WEBAPP_URL=http://NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER \
+ENV NEXT_PUBLIC_APP_NAME=$NEXT_PUBLIC_APP_NAME \
+  NEXT_PUBLIC_WEBAPP_URL=http://NEXT_PUBLIC_WEBAPP_URL_PLACEHOLDER \
   NEXT_PUBLIC_API_V2_URL=$NEXT_PUBLIC_API_V2_URL \
   NEXT_PUBLIC_LICENSE_CONSENT=$NEXT_PUBLIC_LICENSE_CONSENT \
   NEXT_PUBLIC_WEBSITE_TERMS_URL=$NEXT_PUBLIC_WEBSITE_TERMS_URL \
